@@ -615,10 +615,13 @@ public class Transaction extends ChildMessage {
         ALL(1),
         NONE(2),
         SINGLE(3),
+        BITCOINCASHBIP143(0x40),
         ANYONECANPAY(0x80), // Caution: Using this type in isolation is non-standard. Treated similar to ANYONECANPAY_ALL.
         ANYONECANPAY_ALL(0x81),
         ANYONECANPAY_NONE(0x82),
         ANYONECANPAY_SINGLE(0x83),
+        ALL_CASH(1+0x40),
+        ALL_CASH_ANYONE_CANPAY(1+0x40+0x80),
         UNSET(0); // Caution: Using this type in isolation is non-standard. Treated similar to ALL.
 
         public final int value;
@@ -1409,6 +1412,121 @@ public class Transaction extends ChildMessage {
         } catch (IOException e) {
             throw new RuntimeException(e);  // Cannot happen.
         }
+    }
+
+    public static final int SIGHASH_FORKID = 0x40;
+
+    /**
+     * Bitcoin Cash (BCC) signature algorithm.
+     *
+     * Calculate a signature hash to support BUIP-HF Digest for replay protected signature verification.
+     * Reference: https://github.com/Bitcoin-ABC/bitcoin-abc/blob/master/doc/abc/replay-protected-sighash.md
+     *
+     * @param inputIndex input the signature is being calculated for. Tx signatures are always relative to an input.
+     * @param redeemScript the script that should be in the given input during signing.
+     * @param sigHashType Should be SigHash.ALL
+     * @param anyoneCanPay should be false.
+     * @param inputValue the inputIndex-th input value. Unit: satoshi
+     * @return
+     */
+    public Sha256Hash hashForSignature(int inputIndex, Script redeemScript, SigHash sigHashType, boolean anyoneCanPay, long inputValue) {
+        int sigHash = TransactionSignature.calcSigHashValue(sigHashType, anyoneCanPay);
+        sigHash |= SIGHASH_FORKID;
+
+        // Create a copy of this transaction to operate upon because we need make changes to the inputs and outputs.
+        // It would not be thread-safe to change the attributes of the transaction object itself.
+        Transaction tx = this.params.getDefaultSerializer().makeTransaction(this.bitcoinSerialize());
+
+        // Clear input scripts in preparation for signing. If we're signing a fresh
+        // transaction that step isn't very helpful, but it doesn't add much cost relative to the actual
+        // EC math so we'll do it anyway.
+        for (int i = 0; i < tx.inputs.size(); i++) {
+            tx.inputs.get(i).clearScriptBytes();
+        }
+
+        byte[] connectedScript = redeemScript.getProgram();
+        connectedScript = Script.removeAllInstancesOfOp(connectedScript, ScriptOpCodes.OP_CODESEPARATOR);
+
+        TransactionInput input = tx.inputs.get(inputIndex);
+        input.setScriptBytes(connectedScript);
+
+        Sha256Hash hashPrevouts = Sha256Hash.ZERO_HASH;
+        Sha256Hash hashSequence = Sha256Hash.ZERO_HASH;
+        Sha256Hash hashOutputs = Sha256Hash.ZERO_HASH;
+
+        try {
+            if ((sigHash & SigHash.ANYONECANPAY.value) == 0) {
+                hashPrevouts = getPrevoutHash(tx);
+            }
+
+            if ((sigHash & SigHash.ANYONECANPAY.value) == 0 && (sigHash & 0x1F) != SigHash.SINGLE.value && (sigHash & 0x1F) != SigHash.NONE.value) {
+                hashSequence = getSequenceHash(tx);
+            }
+
+            if ((sigHash & 0x1F) != SigHash.SINGLE.value && (sigHash & 0x1F) != SigHash.NONE.value) {
+                hashOutputs = getOutputsHash(tx);
+            } else if ((sigHash & 0x1F) == SigHash.SINGLE.value && inputIndex < tx.getOutputs().size()) {
+                hashOutputs = Sha256Hash.twiceOf(tx.getOutputs().get(inputIndex).bitcoinSerialize());
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            uint32ToByteStreamLE(tx.getVersion(), baos);
+            baos.write(hashPrevouts.getBytes());
+            baos.write(hashSequence.getBytes());
+
+            // The input being signed (replacing the scriptSig with scriptCode +
+            // amount). The prevout may already be contained in hashPrevout, and the
+            // nSequence may already be contain in hashSequence.
+            tx.getInput(inputIndex).getOutpoint().bitcoinSerializeToStream(baos);
+
+            baos.write(new VarInt(connectedScript.length).encode());
+            baos.write(connectedScript);
+            uint64ToByteStreamLE(BigInteger.valueOf(inputValue), baos);
+            uint32ToByteStreamLE(tx.inputs.get(inputIndex).getSequenceNumber(), baos);
+
+            // Outputs (none/one/all, depending on flags)
+            baos.write(hashOutputs.getBytes());
+
+            // Locktime
+            uint32ToByteStreamLE(tx.lockTime, baos);
+            uint32ToByteStreamLE(0x000000ff & sigHash, baos);
+
+            Sha256Hash hash = Sha256Hash.twiceOf(baos.toByteArray());
+            baos.close();
+            return hash;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Sha256Hash getPrevoutHash(Transaction tx) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        for (int i = 0; i < tx.inputs.size(); i++) {
+            tx.inputs.get(i).getOutpoint().bitcoinSerializeToStream(baos);
+        }
+        Sha256Hash hash = Sha256Hash.twiceOf(baos.toByteArray());
+        baos.close();
+        return hash;
+    }
+
+    private Sha256Hash getSequenceHash(Transaction tx) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        for (int i = 0; i < tx.inputs.size(); i++) {
+            uint32ToByteStreamLE(tx.inputs.get(i).getSequenceNumber(), baos);
+        }
+        Sha256Hash hash = Sha256Hash.twiceOf(baos.toByteArray());
+        baos.close();
+        return hash;
+    }
+
+    private Sha256Hash getOutputsHash(Transaction tx) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        for (int i = 0; i < tx.outputs.size(); i++) {
+            tx.outputs.get(i).bitcoinSerializeToStream(baos);
+        }
+        Sha256Hash hash = Sha256Hash.twiceOf(baos.toByteArray());
+        baos.close();
+        return hash;
     }
 
     /**

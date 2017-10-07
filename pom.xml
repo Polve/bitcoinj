@@ -21,7 +21,7 @@
 
   <groupId>wf.bitcoin</groupId>
   <artifactId>bitcoinj-parent</artifactId>
-  <version>0.15-cm01</version>
+  <version>0.15-cm04</version>
   <packaging>pom</packaging>
 
   <modules>
