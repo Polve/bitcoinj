@@ -19,9 +19,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.bitcoinj</groupId>
+  <groupId>wf.bitcoin</groupId>
   <artifactId>bitcoinj-parent</artifactId>
-  <version>0.15-SNAPSHOT</version>
+  <version>0.15-cm01</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -38,9 +38,9 @@
   </parent>
 
   <scm>
-    <connection>scm:git:https://github.com/bitcoinj/bitcoinj</connection>
-    <developerConnection>scm:git:https://github.com/bitcoinj/bitcoinj</developerConnection>
-    <url>scm:git:https://github.com/bitcoinj/bitcoinj</url>
+    <connection>scm:git:https://github.com/Polve/bitcoinj</connection>
+    <developerConnection>scm:git:https://github.com/Polve/bitcoinj.git</developerConnection>
+    <url>scm:git:https://github.com/Polve/bitcoinj</url>
   </scm>
 
   <name>bitcoinj Parent</name>
@@ -112,7 +112,7 @@
       <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.5</version>
+        <version>1.6.8</version>
         <extensions>true</extensions>
         <configuration>
             <serverId>ossrh</serverId>
@@ -264,7 +264,7 @@
                   <plugin>
                       <groupId>org.apache.maven.plugins</groupId>
                       <artifactId>maven-gpg-plugin</artifactId>
-                      <version>1.5</version>
+                      <version>1.6</version>
                       <executions>
                           <execution>
                               <id>sign-artifacts</id>
