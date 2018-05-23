@@ -1329,6 +1329,10 @@ public class Transaction extends ChildMessage {
      * See transaction c99c49da4c38af669dea436d3e73780dfdb6c1ecf9958baa52960e8baee30e73, which has sigHashType 0
      */
     public Sha256Hash hashForSignature(int inputIndex, byte[] connectedScript, byte sigHashType) {
+      return hashForSignature(inputIndex, connectedScript, sigHashType, true);
+    }
+    
+    public Sha256Hash hashForSignature(int inputIndex, byte[] connectedScript, byte sigHashType, boolean doubleSha) {
         // The SIGHASH flags are used in the design of contracts, please see this page for a further understanding of
         // the purposes of the code in this method:
         //
@@ -1405,7 +1409,11 @@ public class Transaction extends ChildMessage {
             uint32ToByteStreamLE(0x000000ff & sigHashType, bos);
             // Note that this is NOT reversed to ensure it will be signed correctly. If it were to be printed out
             // however then we would expect that it is IS reversed.
-            Sha256Hash hash = Sha256Hash.twiceOf(bos.toByteArray());
+            Sha256Hash hash;
+            if (doubleSha)
+              hash= Sha256Hash.twiceOf(bos.toByteArray());
+            else
+              hash= Sha256Hash.of(bos.toByteArray());
             bos.close();
 
             return hash;

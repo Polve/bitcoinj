@@ -21,14 +21,16 @@
 
   <groupId>wf.bitcoin</groupId>
   <artifactId>bitcoinj-parent</artifactId>
-  <version>0.15-cm04</version>
+  <version>0.15-cm05</version>
   <packaging>pom</packaging>
 
   <modules>
     <module>core</module>
+    <!--
     <module>examples</module>
     <module>tools</module>
     <module>wallettemplate</module>
+      -->
   </modules>
 
   <parent>
