@@ -22,7 +22,7 @@
     <parent>
         <groupId>wf.bitcoin</groupId>
         <artifactId>bitcoinj-parent</artifactId>
-        <version>0.15-cm05</version>
+        <version>0.15-cm06</version>
     </parent>
 
     <artifactId>bitcoinj-core</artifactId>

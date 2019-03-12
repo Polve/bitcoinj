@@ -21,7 +21,7 @@
 
   <groupId>wf.bitcoin</groupId>
   <artifactId>bitcoinj-parent</artifactId>
-  <version>0.15-cm05</version>
+  <version>0.15-cm06</version>
   <packaging>pom</packaging>
 
   <modules>
@@ -119,7 +119,7 @@
         <configuration>
             <serverId>ossrh</serverId>
             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-            <autoReleaseAfterClose>false</autoReleaseAfterClose>
+            <autoReleaseAfterClose>true</autoReleaseAfterClose>
         </configuration>
       </plugin>
     </plugins>
